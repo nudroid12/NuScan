@@ -37,7 +37,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Merge
+import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Settings
@@ -106,6 +106,9 @@ private sealed interface AppPage {
     data class Main(val section: MainSection) : AppPage
     data object Scanner : AppPage
     data object ImageToPdf : AppPage
+    data object MergePdf : AppPage
+    data object SplitPdf : AppPage
+    data object PdfToImage : AppPage
 }
 
 @Composable
@@ -143,7 +146,10 @@ fun NuScanApp() {
                 refreshKey = documentRefresh,
                 modifier = Modifier.padding(padding),
                 onScan = { page = AppPage.Scanner },
-                onImageToPdf = { page = AppPage.ImageToPdf }
+                onImageToPdf = { page = AppPage.ImageToPdf },
+                onMergePdf = { page = AppPage.MergePdf },
+                onSplitPdf = { page = AppPage.SplitPdf },
+                onPdfToImage = { page = AppPage.PdfToImage }
             )
             AppPage.Scanner -> ScannerPage(
                 modifier = Modifier.padding(padding),
@@ -167,6 +173,32 @@ fun NuScanApp() {
                     }
                 }
             )
+            AppPage.MergePdf -> MergePdfPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) },
+                onCreated = { file ->
+                    documentRefresh++
+                    page = AppPage.Main(MainSection.Documents)
+                    appScope.launch { snackbar.showSnackbar("Merged into ${file.name}") }
+                }
+            )
+            AppPage.SplitPdf -> SplitPdfPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) },
+                onCreated = { files ->
+                    documentRefresh++
+                    page = AppPage.Main(MainSection.Documents)
+                    appScope.launch { snackbar.showSnackbar("Created ${files.size} split PDF${if (files.size == 1) "" else "s"}") }
+                }
+            )
+            AppPage.PdfToImage -> PdfToImagePage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) },
+                onExported = { result ->
+                    page = AppPage.Main(MainSection.Tools)
+                    appScope.launch { snackbar.showSnackbar("Exported ${result.imageCount} image${if (result.imageCount == 1) "" else "s"} to ${result.folderName}") }
+                }
+            )
         }
     }
 }
@@ -177,12 +209,15 @@ private fun MainPage(
     refreshKey: Int,
     modifier: Modifier,
     onScan: () -> Unit,
-    onImageToPdf: () -> Unit
+    onImageToPdf: () -> Unit,
+    onMergePdf: () -> Unit,
+    onSplitPdf: () -> Unit,
+    onPdfToImage: () -> Unit
 ) {
     when (section) {
-        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf)
+        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage)
         MainSection.Documents -> DocumentsPage(modifier, refreshKey)
-        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf)
+        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage)
         MainSection.Settings -> SettingsPage(modifier)
     }
 }
@@ -192,7 +227,10 @@ private fun HomePage(
     modifier: Modifier,
     refreshKey: Int,
     onScan: () -> Unit,
-    onImageToPdf: () -> Unit
+    onImageToPdf: () -> Unit,
+    onMergePdf: () -> Unit,
+    onSplitPdf: () -> Unit,
+    onPdfToImage: () -> Unit
 ) {
     val context = LocalContext.current
     val recent = remember(refreshKey) { DocumentRepository.listPdfFiles(context).take(3) }
@@ -249,7 +287,13 @@ private fun HomePage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool("Merge", Icons.Default.Merge, Modifier.weight(1f), badge = "M3")
+                QuickTool("Merge", Icons.Default.CallMerge, Modifier.weight(1f), badge = "NEW", onClick = onMergePdf)
+                QuickTool("Split", Icons.Default.ContentCut, Modifier.weight(1f), badge = "NEW", onClick = onSplitPdf)
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                QuickTool("PDF to image", Icons.Default.PictureAsPdf, Modifier.weight(1f), badge = "NEW", onClick = onPdfToImage)
                 QuickTool("Compress", Icons.Default.SwapVert, Modifier.weight(1f), badge = "M4")
             }
         }
@@ -395,14 +439,17 @@ private fun DocumentRow(file: File, onDeleted: (() -> Unit)? = null) {
 private fun ToolsPage(
     modifier: Modifier,
     onScan: () -> Unit,
-    onImageToPdf: () -> Unit
+    onImageToPdf: () -> Unit,
+    onMergePdf: () -> Unit,
+    onSplitPdf: () -> Unit,
+    onPdfToImage: () -> Unit
 ) {
     val tools = listOf(
-        ToolItem("Image to PDF", "Available now", Icons.Default.Image, ToolAction.ImageToPdf),
+        ToolItem("Image to PDF", "Images into a multi-page PDF", Icons.Default.Image, ToolAction.ImageToPdf),
         ToolItem("Document scanner", "Auto crop, rotate and filters", Icons.Default.DocumentScanner, ToolAction.Scanner),
-        ToolItem("Merge PDFs", "Planned for M3", Icons.Default.Merge, null),
-        ToolItem("Split PDF", "Planned for M3", Icons.Default.ContentCut, null),
-        ToolItem("PDF to image", "Planned for M3", Icons.Default.PictureAsPdf, null),
+        ToolItem("Merge PDFs", "Combine multiple PDFs in your chosen order", Icons.Default.CallMerge, ToolAction.MergePdf),
+        ToolItem("Split PDF", "Every page or custom page groups", Icons.Default.ContentCut, ToolAction.SplitPdf),
+        ToolItem("PDF to image", "Export pages as PNG or JPEG", Icons.Default.PictureAsPdf, ToolAction.PdfToImage),
         ToolItem("Compress PDF", "Planned for M4", Icons.Default.SwapVert, null),
         ToolItem("OCR", "Planned for M4", Icons.Default.TextFields, null),
         ToolItem("QR tools", "Planned for M5", Icons.Default.QrCode2, null),
@@ -416,7 +463,7 @@ private fun ToolsPage(
     ) {
         item {
             Text("Tools", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("NuScan grows by milestone. Unfinished tools stay disabled until they work.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("M3 turns the core PDF toolbox on. All enabled tools work locally on the device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         items(tools) { tool ->
@@ -425,6 +472,9 @@ private fun ToolsPage(
                     when (tool.action) {
                         ToolAction.ImageToPdf -> onImageToPdf()
                         ToolAction.Scanner -> onScan()
+                        ToolAction.MergePdf -> onMergePdf()
+                        ToolAction.SplitPdf -> onSplitPdf()
+                        ToolAction.PdfToImage -> onPdfToImage()
                         null -> Unit
                     }
                 },
@@ -444,7 +494,7 @@ private fun ToolsPage(
     }
 }
 
-private enum class ToolAction { ImageToPdf, Scanner }
+private enum class ToolAction { ImageToPdf, Scanner, MergePdf, SplitPdf, PdfToImage }
 
 private data class ToolItem(
     val title: String,
@@ -462,14 +512,14 @@ private fun SettingsPage(modifier: Modifier) {
     ) {
         item {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("M2 adds document scanning while keeping the core app lightweight.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("M3 adds merge, split and PDF-to-image while keeping document work local.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
                     headlineContent = { Text("On-device document tools") },
-                    supportingContent = { Text("Image to PDF runs locally. Scanner processing is on-device; Google Play services may download scanner components on first use.") },
+                    supportingContent = { Text("Image to PDF, merge, split and PDF-to-image run locally. Scanner processing is on-device; Google Play services may download scanner components on first use.") },
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
                 )
             }
