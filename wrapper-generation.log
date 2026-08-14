@@ -1,0 +1,38 @@
+
+Welcome to Gradle 8.13!
+
+Here are the highlights of this release:
+ - Daemon JVM auto-provisioning
+ - Enhancements for Scala plugin and JUnit testing
+ - Improvements for build authors and plugin developers
+
+For more details see https://docs.gradle.org/8.13/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+Calculating task graph as no cached configuration is available for tasks: wrapper --gradle-version 8.13
+
+> Configure project :app
+e: file:///home/runner/work/NuScan/NuScan/app/build.gradle.kts:30:9: Using 'jvmTarget: String' is an error. Please migrate to the compilerOptions DSL. More details are here: https://kotl.in/u1r8ln
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1786730491405.json
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '/home/runner/work/NuScan/NuScan/app/build.gradle.kts' line: 30
+
+* What went wrong:
+Script compilation error:
+
+  Line 30:         jvmTarget = "17"
+                   ^ Using 'jvmTarget: String' is an error. Please migrate to the compilerOptions DSL. More details are here: https://kotl.in/u1r8ln
+
+1 error
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 3s
+Configuration cache entry stored.
