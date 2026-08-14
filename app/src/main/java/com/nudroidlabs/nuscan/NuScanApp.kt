@@ -104,6 +104,7 @@ private enum class MainSection(val label: String, val icon: ImageVector) {
 
 private sealed interface AppPage {
     data class Main(val section: MainSection) : AppPage
+    data object Scanner : AppPage
     data object ImageToPdf : AppPage
 }
 
@@ -141,7 +142,19 @@ fun NuScanApp() {
                 section = current.section,
                 refreshKey = documentRefresh,
                 modifier = Modifier.padding(padding),
+                onScan = { page = AppPage.Scanner },
                 onImageToPdf = { page = AppPage.ImageToPdf }
+            )
+            AppPage.Scanner -> ScannerPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Home) },
+                onCreated = { file, pageCount ->
+                    documentRefresh++
+                    page = AppPage.Main(MainSection.Documents)
+                    appScope.launch {
+                        snackbar.showSnackbar("Scanned $pageCount page${if (pageCount == 1) "" else "s"} to ${file.name}")
+                    }
+                }
             )
             AppPage.ImageToPdf -> ImageToPdfPage(
                 modifier = Modifier.padding(padding),
@@ -163,18 +176,24 @@ private fun MainPage(
     section: MainSection,
     refreshKey: Int,
     modifier: Modifier,
+    onScan: () -> Unit,
     onImageToPdf: () -> Unit
 ) {
     when (section) {
-        MainSection.Home -> HomePage(modifier, refreshKey, onImageToPdf)
+        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf)
         MainSection.Documents -> DocumentsPage(modifier, refreshKey)
-        MainSection.Tools -> ToolsPage(modifier, onImageToPdf)
+        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf)
         MainSection.Settings -> SettingsPage(modifier)
     }
 }
 
 @Composable
-private fun HomePage(modifier: Modifier, refreshKey: Int, onImageToPdf: () -> Unit) {
+private fun HomePage(
+    modifier: Modifier,
+    refreshKey: Int,
+    onScan: () -> Unit,
+    onImageToPdf: () -> Unit
+) {
     val context = LocalContext.current
     val recent = remember(refreshKey) { DocumentRepository.listPdfFiles(context).take(3) }
 
@@ -197,13 +216,13 @@ private fun HomePage(modifier: Modifier, refreshKey: Int, onImageToPdf: () -> Un
                 shape = RoundedCornerShape(28.dp)
             ) {
                 Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(34.dp))
-                    Text("Turn photos into one clean PDF", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text("Pick multiple images, arrange the page order, then create the PDF offline.")
-                    Button(onClick = onImageToPdf) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
+                    Icon(Icons.Default.DocumentScanner, contentDescription = null, modifier = Modifier.size(34.dp))
+                    Text("Scan paper into a polished PDF", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("Detect pages, crop edges, rotate, apply scan filters and save a multi-page PDF.")
+                    Button(onClick = onScan) {
+                        Icon(Icons.Default.DocumentScanner, contentDescription = null)
                         Spacer(Modifier.size(8.dp))
-                        Text("Create PDF")
+                        Text("Scan document")
                     }
                 }
             }
@@ -223,7 +242,8 @@ private fun HomePage(modifier: Modifier, refreshKey: Int, onImageToPdf: () -> Un
                     title = "Scan",
                     icon = Icons.Default.DocumentScanner,
                     modifier = Modifier.weight(1f),
-                    badge = "M2"
+                    badge = "NEW",
+                    onClick = onScan
                 )
             }
         }
@@ -372,17 +392,21 @@ private fun DocumentRow(file: File, onDeleted: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun ToolsPage(modifier: Modifier, onImageToPdf: () -> Unit) {
+private fun ToolsPage(
+    modifier: Modifier,
+    onScan: () -> Unit,
+    onImageToPdf: () -> Unit
+) {
     val tools = listOf(
-        ToolItem("Image to PDF", "Available now", Icons.Default.Image, true),
-        ToolItem("Document scanner", "Planned for M2", Icons.Default.DocumentScanner, false),
-        ToolItem("Merge PDFs", "Planned for M3", Icons.Default.Merge, false),
-        ToolItem("Split PDF", "Planned for M3", Icons.Default.ContentCut, false),
-        ToolItem("PDF to image", "Planned for M3", Icons.Default.PictureAsPdf, false),
-        ToolItem("Compress PDF", "Planned for M4", Icons.Default.SwapVert, false),
-        ToolItem("OCR", "Planned for M4", Icons.Default.TextFields, false),
-        ToolItem("QR tools", "Planned for M5", Icons.Default.QrCode2, false),
-        ToolItem("Protect PDF", "Planned for M5", Icons.Default.Lock, false)
+        ToolItem("Image to PDF", "Available now", Icons.Default.Image, ToolAction.ImageToPdf),
+        ToolItem("Document scanner", "Auto crop, rotate and filters", Icons.Default.DocumentScanner, ToolAction.Scanner),
+        ToolItem("Merge PDFs", "Planned for M3", Icons.Default.Merge, null),
+        ToolItem("Split PDF", "Planned for M3", Icons.Default.ContentCut, null),
+        ToolItem("PDF to image", "Planned for M3", Icons.Default.PictureAsPdf, null),
+        ToolItem("Compress PDF", "Planned for M4", Icons.Default.SwapVert, null),
+        ToolItem("OCR", "Planned for M4", Icons.Default.TextFields, null),
+        ToolItem("QR tools", "Planned for M5", Icons.Default.QrCode2, null),
+        ToolItem("Protect PDF", "Planned for M5", Icons.Default.Lock, null)
     )
 
     LazyColumn(
@@ -397,8 +421,14 @@ private fun ToolsPage(modifier: Modifier, onImageToPdf: () -> Unit) {
         }
         items(tools) { tool ->
             Card(
-                onClick = { if (tool.enabled) onImageToPdf() },
-                enabled = tool.enabled,
+                onClick = {
+                    when (tool.action) {
+                        ToolAction.ImageToPdf -> onImageToPdf()
+                        ToolAction.Scanner -> onScan()
+                        null -> Unit
+                    }
+                },
+                enabled = tool.action != null,
                 shape = RoundedCornerShape(18.dp)
             ) {
                 ListItem(
@@ -406,7 +436,7 @@ private fun ToolsPage(modifier: Modifier, onImageToPdf: () -> Unit) {
                     supportingContent = { Text(tool.subtitle) },
                     leadingContent = { Icon(tool.icon, contentDescription = null) },
                     trailingContent = {
-                        if (tool.enabled) Icon(Icons.Default.CheckCircle, contentDescription = "Available")
+                        if (tool.action != null) Icon(Icons.Default.CheckCircle, contentDescription = "Available")
                     }
                 )
             }
@@ -414,11 +444,13 @@ private fun ToolsPage(modifier: Modifier, onImageToPdf: () -> Unit) {
     }
 }
 
+private enum class ToolAction { ImageToPdf, Scanner }
+
 private data class ToolItem(
     val title: String,
     val subtitle: String,
     val icon: ImageVector,
-    val enabled: Boolean
+    val action: ToolAction?
 )
 
 @Composable
@@ -430,14 +462,14 @@ private fun SettingsPage(modifier: Modifier) {
     ) {
         item {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Simple by design for M1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("M2 adds document scanning while keeping the core app lightweight.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
-                    headlineContent = { Text("Offline processing") },
-                    supportingContent = { Text("Image to PDF runs locally. NuScan requests no internet permission.") },
+                    headlineContent = { Text("On-device document tools") },
+                    supportingContent = { Text("Image to PDF runs locally. Scanner processing is on-device; Google Play services may download scanner components on first use.") },
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
                 )
             }

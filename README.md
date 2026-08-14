@@ -1,36 +1,28 @@
 # NuScan
 
-Developer: NudroidLabs
+NuScan is an Android document and PDF toolkit by NudroidLabs.
 
-NuScan is an Android document utility focused on private, on-device processing.
+## M2
 
-## Milestone M1
+M2 keeps the M1 Image to PDF workflow and adds a real document scanner powered by the ML Kit Document Scanner API.
 
-Working in this milestone:
+Implemented:
 
 - Home, Documents, Tools and Settings navigation
-- Multi-image picker
-- Page reordering
-- Image to PDF conversion using Android `PdfDocument`
-- EXIF rotation handling
-- Local PDF library
-- Open, share and delete created PDFs
-- GitHub Actions debug APK build
-- Diagnostic ZIP on every CI run
+- Multi-image to PDF
+- Reorder pages before PDF creation
+- Local PDF library with open, share and delete
+- Document scanner with automatic detection and capture
+- Crop and perspective correction inside the scanner flow
+- Rotate and scan filters
+- Multi-page scanning, up to 50 pages
+- Gallery import into scanner
+- Scanner PDF copied into NuScan Documents
+- Kotlin 2.x `compilerOptions` JVM 17 configuration
+- GitHub Actions build and diagnostic bundle
 
-Planned next:
+The scanner UI and processing are provided by Google Play services. Scanner components may need to download on first use. Document processing runs on-device.
 
-- M2: scanner, crop and filters
-- M3: merge, split and PDF to image
-- M4: compression and OCR
-- M5: signatures, PDF protection and QR tools
-- M6: monetisation and release polish
-- M7: Play Store preparation
+Package: `com.nudroidlabs.nuscan`
 
-## Build
-
-```bash
-./gradlew assembleDebug
-```
-
-The app package is `com.nudroidlabs.nuscan` and the minimum Android version is Android 8.0, API 26.
+Version: `0.2.0-m2`

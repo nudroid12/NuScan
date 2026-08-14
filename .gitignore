@@ -10,3 +10,6 @@
 app/build/
 *.jks
 *.keystore
+*.log
+diagnose/
+NuScan-*-diagnose.zip

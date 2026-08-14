@@ -25,14 +25,10 @@ object PdfCreator {
     fun create(context: Context, images: List<Uri>, requestedName: String): File {
         require(images.isNotEmpty()) { "Select at least one image." }
 
-        val safeName = requestedName
-            .trim()
-            .removeSuffix(".pdf")
-            .replace(Regex("[^A-Za-z0-9._ -]"), "_")
-            .take(80)
-            .ifBlank { "NuScan_Document" }
-
-        val output = uniqueFile(DocumentRepository.outputDirectory(context), safeName)
+        val output = DocumentRepository.uniquePdfFile(
+            DocumentRepository.outputDirectory(context),
+            requestedName
+        )
         val pdf = PdfDocument()
 
         try {
@@ -62,16 +58,6 @@ object PdfCreator {
         } finally {
             pdf.close()
         }
-    }
-
-    private fun uniqueFile(directory: File, baseName: String): File {
-        var candidate = File(directory, "$baseName.pdf")
-        var suffix = 2
-        while (candidate.exists()) {
-            candidate = File(directory, "$baseName ($suffix).pdf")
-            suffix++
-        }
-        return candidate
     }
 
     private fun decodeForPdf(context: Context, uri: Uri): Bitmap? {
