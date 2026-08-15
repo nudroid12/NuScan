@@ -587,7 +587,7 @@ private fun ToolsPage(
 ) {
     val tools = listOf(
         ToolItem("Image to PDF", "Images into a multi-page PDF", Icons.Default.Image, ToolAction.ImageToPdf),
-        ToolItem("Document scanner", "Auto crop, straighten and sharpen", Icons.Default.DocumentScanner, ToolAction.Scanner),
+        ToolItem("Document scanner", "Auto crop, rotate and filters", Icons.Default.DocumentScanner, ToolAction.Scanner),
         ToolItem("Merge PDFs", "Combine multiple PDFs in your chosen order", Icons.AutoMirrored.Filled.CallMerge, ToolAction.MergePdf),
         ToolItem("Split PDF", "Every page or custom page groups", Icons.Default.ContentCut, ToolAction.SplitPdf),
         ToolItem("PDF to image", "Export pages as PNG or JPEG", Icons.Default.PictureAsPdf, ToolAction.PdfToImage),
@@ -682,7 +682,7 @@ private fun SettingsPage(
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
                     headlineContent = { Text("On-device document tools") },
-                    supportingContent = { Text("PDF tools, compression, OCR, document edge correction, QR generation and visible signing run on-device. QR scanning uses Google Play services UI.") },
+                    supportingContent = { Text("PDF tools, compression, OCR, QR generation and visible signing run on-device. Scanner and QR scanning use Google Play services UI.") },
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
                 )
             }

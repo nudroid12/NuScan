@@ -1,16 +1,16 @@
-# NuScan 0.7.2 Scan Fix
+# NuScan M7.1
 
-This patch is based on the verified M7.1 source and changes only the document-scanning pipeline.
+M7.1 is a release-fix patch on top of M7.
 
-## Scan changes
+## Changes
 
-- Replaces the Google document scanner viewfinder with a NuScan CameraX capture flow.
-- Live four-corner detection runs on-device with OpenCV.
-- Auto capture only fires when a sufficiently large document is detected, the corners remain stable, and the frame passes a sharpness check.
-- Full-quality capture uses CameraX `CAPTURE_MODE_MAXIMIZE_QUALITY` and JPEG quality 100.
-- After capture, NuScan detects the paper again on the full image and applies a perspective transform before enhancement.
-- A mild unsharp mask is applied after perspective correction.
-- If automatic edge detection is not reliable, the review screen opens a draggable four-corner manual adjustment.
-- Manual shutter, gallery import and multi-page PDF creation remain available.
+- Fixes the release R8 failure caused by PdfBox-Android's optional JP2/JPX dependency.
+- Keeps the debug APK artifact available even when the release AAB build fails.
+- Uploads the release AAB only when the release build succeeds.
+- Keeps diagnose output available on every run.
+- Replaces deprecated `CallMerge` icon usage with the AutoMirrored variant.
+- Bumps the app to `0.7.1-m7.1` with versionCode `8`.
 
-All unrelated M7.1 features remain unchanged.
+## Release note
+
+NuScan does not bundle the old optional JP2Android dependency. PdfBox-Android documents JPX support as optional and skips JPX images when the decoder is absent. The targeted R8 `-dontwarn com.gemalto.jp2.**` rule therefore suppresses only that known optional dependency warning.
