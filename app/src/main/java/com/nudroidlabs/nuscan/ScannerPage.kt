@@ -49,6 +49,7 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.nudroidlabs.nuscan.data.DocumentRepository
+import com.nudroidlabs.nuscan.scan.ScanEnhancementEngine
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -71,6 +72,7 @@ fun ScannerPage(
         mutableStateOf("NuScan_Scan_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}")
     }
     var busy by remember { mutableStateOf(false) }
+    var busyText by remember { mutableStateOf("Preparing scanner") }
     var errorText by remember { mutableStateOf<String?>(null) }
 
     val scannerLauncher = rememberLauncherForActivityResult(
@@ -81,24 +83,54 @@ fun ScannerPage(
 
         val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
         val pdf = result?.pdf
-        val pageCount = result?.pages?.size ?: 0
-        if (pdf == null) {
-            errorText = "The scan finished without a PDF result."
+        val pageUris = result?.pages?.map { it.imageUri }.orEmpty()
+        val pageCount = pageUris.size
+        if (pageUris.isEmpty() && pdf == null) {
+            errorText = "The scan finished without usable page images or a PDF result."
             return@rememberLauncherForActivityResult
         }
 
         busy = true
+        busyText = "Applying NuScan Clean"
         scope.launch {
-            runCatching {
+            val enhanced = runCatching {
+                require(pageUris.isNotEmpty()) { "No scanned JPEG pages were returned." }
                 withContext(Dispatchers.IO) {
-                    DocumentRepository.importPdf(context, pdf.uri, outputName)
+                    ScanEnhancementEngine.createEnhancedPdf(
+                        context = context,
+                        pageUris = pageUris,
+                        requestedName = outputName,
+                        onProgress = { current, total ->
+                            scope.launch(Dispatchers.Main) {
+                                busyText = "Enhancing page $current of $total"
+                            }
+                        }
+                    ).file
                 }
-            }.onSuccess { file ->
+            }
+
+            enhanced.onSuccess { file ->
                 busy = false
                 onCreated(file, pageCount)
-            }.onFailure { error ->
-                busy = false
-                errorText = error.message ?: "Unable to save the scanned PDF."
+            }.onFailure { enhancementError ->
+                // Keep scanning reliable. If NuScan Clean cannot process a device-specific JPEG,
+                // preserve the scan by importing the original ML Kit PDF instead.
+                val fallback = pdf?.let { originalPdf ->
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            DocumentRepository.importPdf(context, originalPdf.uri, outputName)
+                        }
+                    }
+                }
+
+                if (fallback != null && fallback.isSuccess) {
+                    busy = false
+                    onCreated(fallback.getOrThrow(), result?.pages?.size ?: 0)
+                } else {
+                    busy = false
+                    errorText = enhancementError.message ?: fallback?.exceptionOrNull()?.message
+                        ?: "Unable to save the scanned PDF."
+                }
             }
         }
     }
@@ -111,6 +143,7 @@ fun ScannerPage(
         }
 
         busy = true
+        busyText = "Preparing scanner"
         errorText = null
         val options = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(true)
@@ -200,7 +233,7 @@ fun ScannerPage(
                     if (busy) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.size(10.dp))
-                        Text("Preparing scanner")
+                        Text(busyText)
                     } else {
                         Icon(Icons.Default.DocumentScanner, contentDescription = null)
                         Spacer(Modifier.size(8.dp))
@@ -240,10 +273,9 @@ fun ScannerPage(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         ScannerFeature("Automatic document detection and capture")
-                        ScannerFeature("Crop and perspective correction")
-                        ScannerFeature("Rotate and scan filters")
-                        ScannerFeature("Multi-page scans, up to 50 pages")
-                        ScannerFeature("Import pages from gallery")
+                        ScannerFeature("Crop, perspective, rotate and filters")
+                        ScannerFeature("NuScan Clean lighting, shadow and text enhancement")
+                        ScannerFeature("Multi-page scans and gallery import")
                     }
                 }
             }

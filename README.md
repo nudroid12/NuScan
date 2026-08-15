@@ -29,3 +29,8 @@ Version: `1.0.0-rc1`
 Version code: `11`
 Package: `com.nudroidlabs.nuscan`
 Target SDK: `36`
+
+
+## M9 Scan Quality Engine v1
+
+The stable Google ML Kit scanner remains responsible for capture, auto crop, perspective correction, rotation, filters and multi-page scanning. NuScan now consumes the JPEG page results and builds its own PDF after a conservative on-device enhancement pass for white balance, uneven lighting, soft shadows, local contrast and controlled sharpening. If enhancement fails, NuScan falls back to the original scanner PDF.

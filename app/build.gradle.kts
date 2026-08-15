@@ -21,8 +21,8 @@ android {
         applicationId = "com.nudroidlabs.nuscan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.0.0-rc1"
+        versionCode = 12
+        versionName = "1.0.0-rc2"
         manifestPlaceholders["admobAppId"] = admobAppId
         buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$bannerAdUnitId\"")
     }
