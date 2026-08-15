@@ -52,7 +52,7 @@ fun OnboardingPage(onFinish: () -> Unit) {
             ),
             IntroStep(
                 "Fast offline tools",
-                "Most PDF and OCR work does not need an account. Scanner and QR scan UI use Google Play services.",
+                "Most PDF, OCR and document scanning work does not need an account. QR scanning uses Google Play services.",
                 Icons.Default.OfflineBolt
             )
         )
