@@ -24,7 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -105,7 +105,7 @@ fun MergePdfPage(
             item {
                 Card(shape = RoundedCornerShape(20.dp)) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.CallMerge, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null)
                         Text("Combine PDFs without flattening pages", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         Text(
                             "Choose two or more PDFs, arrange their order, then create one merged document.",
@@ -208,7 +208,7 @@ fun MergePdfPage(
                         Spacer(Modifier.size(10.dp))
                         Text("Merging PDFs")
                     } else {
-                        Icon(Icons.Default.CallMerge, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null)
                         Spacer(Modifier.size(8.dp))
                         Text("Merge PDFs")
                     }

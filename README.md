@@ -1,27 +1,16 @@
-# NuScan M4
+# NuScan M7.1
 
-NuScan is an offline-first Android document toolkit by NudroidLabs.
+M7.1 is a release-fix patch on top of M7.
 
-## M4 features
+## Changes
 
-- Document scanner with crop, rotate and scan filters
-- Image to PDF
-- Merge PDF
-- Split PDF by page or custom groups
-- PDF to PNG/JPEG
-- PDF compression with High quality, Balanced and Small file presets
-- OCR for images and PDFs using the bundled ML Kit Latin-script text model
-- Copy, share and save OCR output as TXT
-- Local Documents library for PDFs created by NuScan
+- Fixes the release R8 failure caused by PdfBox-Android's optional JP2/JPX dependency.
+- Keeps the debug APK artifact available even when the release AAB build fails.
+- Uploads the release AAB only when the release build succeeds.
+- Keeps diagnose output available on every run.
+- Replaces deprecated `CallMerge` icon usage with the AutoMirrored variant.
+- Bumps the app to `0.7.1-m7.1` with versionCode `8`.
 
-## Compression note
+## Release note
 
-M4 compression is designed primarily for scanned and photo-based PDFs. It renders each page and rebuilds it with JPEG compression. This can substantially reduce scan size, but the output is flattened, so original searchable text, links, forms, annotations and digital signatures are not preserved.
-
-## Privacy
-
-Document processing is designed to happen on the device. The document scanner is provided through Google Play services and may download scanner components on first use. The M4 OCR Latin model is bundled with the APK.
-
-Package: `com.nudroidlabs.nuscan`
-
-Version: `0.4.0-m4`
+NuScan does not bundle the old optional JP2Android dependency. PdfBox-Android documents JPX support as optional and skips JPX images when the decoder is absent. The targeted R8 `-dontwarn com.gemalto.jp2.**` rule therefore suppresses only that known optional dependency warning.

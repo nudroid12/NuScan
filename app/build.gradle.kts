@@ -10,12 +10,21 @@ android {
     namespace = "com.nudroidlabs.nuscan"
     compileSdk = 36
 
+    val admobAppId = providers.gradleProperty("NUSCAN_ADMOB_APP_ID")
+        .orElse("ca-app-pub-3940256099942544~3347511713")
+        .get()
+    val bannerAdUnitId = providers.gradleProperty("NUSCAN_ADMOB_BANNER_ID")
+        .orElse("ca-app-pub-3940256099942544/9214589741")
+        .get()
+
     defaultConfig {
         applicationId = "com.nudroidlabs.nuscan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0-m4"
+        versionCode = 8
+        versionName = "0.7.1-m7.1"
+        manifestPlaceholders["admobAppId"] = admobAppId
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$bannerAdUnitId\"")
     }
 
     buildFeatures {
@@ -69,9 +78,14 @@ dependencies {
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    implementation("com.google.zxing:core:3.5.4")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+    implementation("com.android.billingclient:billing:9.1.0")
+    implementation("com.google.android.gms:play-services-ads:25.4.0")
+    implementation("com.google.android.ump:user-messaging-platform:4.0.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

@@ -1,6 +1,8 @@
 package com.nudroidlabs.nuscan
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ContextWrapper
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -33,11 +35,12 @@ import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Settings
@@ -69,6 +72,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -85,6 +90,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.nudroidlabs.nuscan.data.DocumentRepository
+import com.nudroidlabs.nuscan.monetization.NuScanBannerAd
+import com.nudroidlabs.nuscan.monetization.ProBillingController
+import com.nudroidlabs.nuscan.monetization.PrivacyConsentController
 import com.nudroidlabs.nuscan.pdf.PdfCreator
 import java.io.File
 import java.text.DateFormat
@@ -111,14 +119,45 @@ private sealed interface AppPage {
     data object PdfToImage : AppPage
     data object CompressPdf : AppPage
     data object Ocr : AppPage
+    data object SignPdf : AppPage
+    data object ProtectPdf : AppPage
+    data object QrTools : AppPage
+    data object Pro : AppPage
 }
 
 @Composable
 fun NuScanApp() {
+    val context = LocalContext.current
+    val activity = context.findActivity()
+    val proBilling = remember { ProBillingController(context.applicationContext) }
+    val privacy = remember { PrivacyConsentController(context.applicationContext) }
+    var showOnboarding by remember { mutableStateOf(!AppPreferences.isOnboardingComplete(context)) }
     var page: AppPage by remember { mutableStateOf(AppPage.Main(MainSection.Home)) }
     var documentRefresh by remember { mutableIntStateOf(0) }
     val snackbar = remember { SnackbarHostState() }
     val appScope = rememberCoroutineScope()
+
+    DisposableEffect(proBilling) {
+        onDispose { proBilling.close() }
+    }
+
+    LaunchedEffect(activity) {
+        activity?.let { privacy.requestConsent(it) }
+    }
+
+    if (showOnboarding) {
+        OnboardingPage(
+            onFinish = {
+                AppPreferences.setOnboardingComplete(context, true)
+                showOnboarding = false
+            }
+        )
+        return
+    }
+
+    fun openPremium(target: AppPage) {
+        page = if (BuildConfig.DEBUG || proBilling.isPro) target else AppPage.Pro
+    }
 
     BackHandler(enabled = page !is AppPage.Main) {
         page = AppPage.Main(MainSection.Home)
@@ -152,8 +191,19 @@ fun NuScanApp() {
                 onMergePdf = { page = AppPage.MergePdf },
                 onSplitPdf = { page = AppPage.SplitPdf },
                 onPdfToImage = { page = AppPage.PdfToImage },
-                onCompressPdf = { page = AppPage.CompressPdf },
-                onOcr = { page = AppPage.Ocr }
+                onCompressPdf = { openPremium(AppPage.CompressPdf) },
+                onOcr = { openPremium(AppPage.Ocr) },
+                onSignPdf = { openPremium(AppPage.SignPdf) },
+                onProtectPdf = { openPremium(AppPage.ProtectPdf) },
+                onQrTools = { page = AppPage.QrTools },
+                proBilling = proBilling,
+                privacy = privacy,
+                onOpenPro = { page = AppPage.Pro },
+                onPrivacyOptions = { activity?.let(privacy::showPrivacyOptions) },
+                onReplayOnboarding = {
+                    AppPreferences.setOnboardingComplete(context, false)
+                    showOnboarding = true
+                }
             )
             AppPage.Scanner -> ScannerPage(
                 modifier = Modifier.padding(padding),
@@ -220,6 +270,37 @@ fun NuScanApp() {
                 modifier = Modifier.padding(padding),
                 onBack = { page = AppPage.Main(MainSection.Tools) }
             )
+            AppPage.SignPdf -> SignPdfPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) },
+                onCreated = { file ->
+                    documentRefresh++
+                    page = AppPage.Main(MainSection.Documents)
+                    appScope.launch { snackbar.showSnackbar("Signed copy created: ${file.name}") }
+                }
+            )
+            AppPage.ProtectPdf -> ProtectPdfPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) },
+                onCreated = { file ->
+                    documentRefresh++
+                    page = AppPage.Main(MainSection.Documents)
+                    appScope.launch { snackbar.showSnackbar("Protected copy created: ${file.name}") }
+                }
+            )
+            AppPage.QrTools -> QrToolsPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) }
+            )
+            AppPage.Pro -> ProPage(
+                modifier = Modifier.padding(padding),
+                billing = proBilling,
+                onBack = { page = AppPage.Main(MainSection.Settings) },
+                onBuy = {
+                    activity?.let { proBilling.launchPurchase(it) }
+                        ?: "Unable to open Google Play purchase screen."
+                }
+            )
         }
     }
 }
@@ -235,13 +316,28 @@ private fun MainPage(
     onSplitPdf: () -> Unit,
     onPdfToImage: () -> Unit,
     onCompressPdf: () -> Unit,
-    onOcr: () -> Unit
+    onOcr: () -> Unit,
+    onSignPdf: () -> Unit,
+    onProtectPdf: () -> Unit,
+    onQrTools: () -> Unit,
+    proBilling: ProBillingController,
+    privacy: PrivacyConsentController,
+    onOpenPro: () -> Unit,
+    onPrivacyOptions: () -> Unit,
+    onReplayOnboarding: () -> Unit
 ) {
     when (section) {
-        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr)
+        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr, onSignPdf, onProtectPdf, onQrTools)
         MainSection.Documents -> DocumentsPage(modifier, refreshKey)
-        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr)
-        MainSection.Settings -> SettingsPage(modifier)
+        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr, onSignPdf, onProtectPdf, onQrTools)
+        MainSection.Settings -> SettingsPage(
+            modifier = modifier,
+            billing = proBilling,
+            privacy = privacy,
+            onOpenPro = onOpenPro,
+            onReplayOnboarding = onReplayOnboarding,
+            onPrivacyOptions = onPrivacyOptions
+        )
     }
 }
 
@@ -255,7 +351,10 @@ private fun HomePage(
     onSplitPdf: () -> Unit,
     onPdfToImage: () -> Unit,
     onCompressPdf: () -> Unit,
-    onOcr: () -> Unit
+    onOcr: () -> Unit,
+    onSignPdf: () -> Unit,
+    onProtectPdf: () -> Unit,
+    onQrTools: () -> Unit
 ) {
     val context = LocalContext.current
     val recent = remember(refreshKey) { DocumentRepository.listPdfFiles(context).take(3) }
@@ -312,7 +411,7 @@ private fun HomePage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool("Merge", Icons.Default.CallMerge, Modifier.weight(1f), badge = "NEW", onClick = onMergePdf)
+                QuickTool("Merge", Icons.AutoMirrored.Filled.CallMerge, Modifier.weight(1f), badge = "NEW", onClick = onMergePdf)
                 QuickTool("Split", Icons.Default.ContentCut, Modifier.weight(1f), badge = "NEW", onClick = onSplitPdf)
             }
         }
@@ -324,8 +423,14 @@ private fun HomePage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool("OCR", Icons.Default.TextFields, Modifier.weight(1f), badge = "NEW", onClick = onOcr)
-                Spacer(Modifier.weight(1f))
+                QuickTool("OCR", Icons.Default.TextFields, Modifier.weight(1f), onClick = onOcr)
+                QuickTool("Sign PDF", Icons.Default.Draw, Modifier.weight(1f), badge = "NEW", onClick = onSignPdf)
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                QuickTool("Protect PDF", Icons.Default.Lock, Modifier.weight(1f), badge = "NEW", onClick = onProtectPdf)
+                QuickTool("QR tools", Icons.Default.QrCode2, Modifier.weight(1f), badge = "NEW", onClick = onQrTools)
             }
         }
         item {
@@ -475,18 +580,22 @@ private fun ToolsPage(
     onSplitPdf: () -> Unit,
     onPdfToImage: () -> Unit,
     onCompressPdf: () -> Unit,
-    onOcr: () -> Unit
+    onOcr: () -> Unit,
+    onSignPdf: () -> Unit,
+    onProtectPdf: () -> Unit,
+    onQrTools: () -> Unit
 ) {
     val tools = listOf(
         ToolItem("Image to PDF", "Images into a multi-page PDF", Icons.Default.Image, ToolAction.ImageToPdf),
         ToolItem("Document scanner", "Auto crop, rotate and filters", Icons.Default.DocumentScanner, ToolAction.Scanner),
-        ToolItem("Merge PDFs", "Combine multiple PDFs in your chosen order", Icons.Default.CallMerge, ToolAction.MergePdf),
+        ToolItem("Merge PDFs", "Combine multiple PDFs in your chosen order", Icons.AutoMirrored.Filled.CallMerge, ToolAction.MergePdf),
         ToolItem("Split PDF", "Every page or custom page groups", Icons.Default.ContentCut, ToolAction.SplitPdf),
         ToolItem("PDF to image", "Export pages as PNG or JPEG", Icons.Default.PictureAsPdf, ToolAction.PdfToImage),
         ToolItem("Compress PDF", "Reduce scanned PDF size with quality presets", Icons.Default.SwapVert, ToolAction.CompressPdf),
         ToolItem("OCR", "Extract editable text from images or PDFs", Icons.Default.TextFields, ToolAction.Ocr),
-        ToolItem("QR tools", "Planned for M5", Icons.Default.QrCode2, null),
-        ToolItem("Protect PDF", "Planned for M5", Icons.Default.Lock, null)
+        ToolItem("Sign PDF", "Draw and place a visible signature", Icons.Default.Draw, ToolAction.SignPdf),
+        ToolItem("Protect PDF", "Require a password to open a PDF copy", Icons.Default.Lock, ToolAction.ProtectPdf),
+        ToolItem("QR tools", "Scan, generate, save and share QR codes", Icons.Default.QrCode2, ToolAction.QrTools)
     )
 
     LazyColumn(
@@ -496,7 +605,7 @@ private fun ToolsPage(
     ) {
         item {
             Text("Tools", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("M4 adds PDF compression and OCR. Enabled tools work locally on the device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("M7 hardens billing, privacy consent and release preparation. Premium tools stay unlocked in debug builds for testing.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         items(tools) { tool ->
@@ -510,6 +619,9 @@ private fun ToolsPage(
                         ToolAction.PdfToImage -> onPdfToImage()
                         ToolAction.CompressPdf -> onCompressPdf()
                         ToolAction.Ocr -> onOcr()
+                        ToolAction.SignPdf -> onSignPdf()
+                        ToolAction.ProtectPdf -> onProtectPdf()
+                        ToolAction.QrTools -> onQrTools()
                         null -> Unit
                     }
                 },
@@ -529,7 +641,7 @@ private fun ToolsPage(
     }
 }
 
-private enum class ToolAction { ImageToPdf, Scanner, MergePdf, SplitPdf, PdfToImage, CompressPdf, Ocr }
+private enum class ToolAction { ImageToPdf, Scanner, MergePdf, SplitPdf, PdfToImage, CompressPdf, Ocr, SignPdf, ProtectPdf, QrTools }
 
 private data class ToolItem(
     val title: String,
@@ -539,7 +651,14 @@ private data class ToolItem(
 )
 
 @Composable
-private fun SettingsPage(modifier: Modifier) {
+private fun SettingsPage(
+    modifier: Modifier,
+    billing: ProBillingController,
+    privacy: PrivacyConsentController,
+    onOpenPro: () -> Unit,
+    onReplayOnboarding: () -> Unit,
+    onPrivacyOptions: () -> Unit
+) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -547,17 +666,56 @@ private fun SettingsPage(modifier: Modifier) {
     ) {
         item {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("M4 adds compression and OCR while keeping document work local.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("NuScan M7 release and privacy controls.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
+        }
+        item {
+            Card(onClick = onOpenPro, shape = RoundedCornerShape(18.dp)) {
+                ListItem(
+                    headlineContent = { Text(if (billing.isPro) "NuScan Pro active" else "NuScan Pro") },
+                    supportingContent = { Text(if (billing.isPro) "Ads removed and premium entitlement active." else billing.statusText) },
+                    leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
+                )
+            }
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
                     headlineContent = { Text("On-device document tools") },
-                    supportingContent = { Text("PDF tools, compression and OCR run on-device. OCR uses a bundled Latin-script model. Scanner processing is on-device; Google Play services may download scanner components on first use.") },
+                    supportingContent = { Text("PDF tools, compression, OCR, QR generation and visible signing run on-device. Scanner and QR scanning use Google Play services UI.") },
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
                 )
             }
+        }
+        item {
+            OutlinedButton(onClick = onReplayOnboarding, modifier = Modifier.fillMaxWidth()) {
+                Text("Replay onboarding")
+            }
+        }
+        if (privacy.privacyOptionsRequired) {
+            item {
+                Card(onClick = onPrivacyOptions, shape = RoundedCornerShape(18.dp)) {
+                    ListItem(
+                        headlineContent = { Text("Privacy choices") },
+                        supportingContent = { Text(privacy.statusText) },
+                        leadingContent = { Icon(Icons.Default.Settings, contentDescription = null) }
+                    )
+                }
+            }
+        }
+        if (!billing.isPro) {
+            item {
+                Text("M7 ad test", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (privacy.canRequestAds)
+                        "Consent state allows ad requests. This milestone still defaults to Google's test banner IDs."
+                    else
+                        "Banner waits until the consent platform allows ad requests.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (privacy.canRequestAds) item { NuScanBannerAd() }
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
@@ -756,6 +914,13 @@ private fun sharePdf(context: Context, file: File) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, "Share PDF"))
+}
+
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 private fun formatSize(bytes: Long): String = when {

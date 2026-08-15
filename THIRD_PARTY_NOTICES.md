@@ -1,8 +1,5 @@
-# Third-party notices
+# Third-party components
 
-NuScan uses the following Android libraries in M4:
+NuScan M7 uses AndroidX and Jetpack Compose, Google ML Kit and Play services document and code scanners, Google Play Billing, Google Mobile Ads, Google User Messaging Platform, ZXing, PdfBox Android and Kotlin coroutines.
 
-- PdfBox-Android 2.0.27.0, Apache License 2.0, for PDF merge, split and compressed PDF generation.
-- Google ML Kit Document Scanner via Google Play services for scanning.
-- Google ML Kit Text Recognition 16.0.1 for bundled on-device Latin-script OCR.
-- AndroidX, Jetpack Compose and Kotlin libraries under their respective licences.
+Review and preserve the licences and notices required by each dependency when distributing production builds.
