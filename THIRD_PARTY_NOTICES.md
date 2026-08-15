@@ -1,7 +1,5 @@
-# Third-party notices
+# Third-party components
 
-NuScan uses AndroidX and Jetpack Compose, Google ML Kit and Play services document and code scanners, Google Mobile Ads, Google User Messaging Platform, ZXing, PdfBox Android and Kotlin coroutines.
+NuScan uses AndroidX and Jetpack Compose, Google ML Kit / Google Play services document and QR scanner components, ZXing, PDFBox Android, Kotlin coroutines and Android platform APIs.
 
-Google Play Billing is not included in NuScan 1.0 RC1.
-
-Review and preserve all licences and notices required by each dependency before production distribution.
+NuScan M10 contains no Google Mobile Ads SDK, UMP advertising consent SDK or Play Billing dependency.

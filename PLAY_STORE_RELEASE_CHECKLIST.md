@@ -1,14 +1,13 @@
-# NuScan Play Store release checklist
+# NuScan release checklist
 
 - [ ] Test Scan, Image to PDF, Merge, Split, PDF to Image, Compress, OCR, Sign, Protect and QR tools on real devices.
+- [ ] Test the M9 Scan Quality Engine on multiple documents and lighting conditions.
 - [ ] Test onboarding with gesture navigation and 3-button navigation.
 - [ ] Test light and dark themes.
 - [ ] Test small-screen and large-screen phones.
 - [ ] Test large images and multi-page PDFs for memory pressure and clear failure messages.
-- [ ] Replace Google sample AdMob IDs with NudroidLabs production IDs before production.
-- [ ] Configure UMP consent messages in AdMob where required.
+- [ ] Test updater check, download verification and Android installer hand-off with two permanently signed builds.
+- [ ] Back up the permanent direct-distribution signing key in at least two private locations.
 - [ ] Publish and verify the final privacy policy.
-- [ ] Complete Play Data safety based on the actual production SDK configuration.
-- [ ] Sign the release AAB with the upload key and use Play App Signing.
-- [ ] Test the signed bundle through Play internal or closed testing before production.
-- [ ] Confirm package name `com.nudroidlabs.nuscan`, version code and target SDK before upload.
+- [ ] Confirm package name `com.nudroidlabs.nuscan`, version code and target SDK before every release.
+- [ ] If NuScan later moves to Google Play, review Play policy for `REQUEST_INSTALL_PACKAGES` and remove the direct APK updater from the Play-distributed variant if required.

@@ -1,0 +1,8 @@
+{
+  "versionCode": 13,
+  "versionName": "1.0.0-rc3",
+  "apkUrl": "",
+  "sha256": "",
+  "changelog": "Built-in updater and signed-release infrastructure added. No public signed APK has been published yet.",
+  "mandatory": false
+}

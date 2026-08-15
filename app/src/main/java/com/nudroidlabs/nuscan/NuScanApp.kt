@@ -1,8 +1,6 @@
 package com.nudroidlabs.nuscan
 
-import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.ContextWrapper
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -90,9 +88,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.nudroidlabs.nuscan.data.DocumentRepository
-import com.nudroidlabs.nuscan.monetization.NuScanBannerAd
-import com.nudroidlabs.nuscan.monetization.PrivacyConsentController
 import com.nudroidlabs.nuscan.pdf.PdfCreator
+import com.nudroidlabs.nuscan.update.UpdateCheckResult
+import com.nudroidlabs.nuscan.update.UpdateManager
 import java.io.File
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -126,8 +124,7 @@ private sealed interface AppPage {
 @Composable
 fun NuScanApp() {
     val context = LocalContext.current
-    val activity = context.findActivity()
-    val privacy = remember { PrivacyConsentController(context.applicationContext) }
+    val updater = remember { UpdateManager(context.applicationContext) }
     var showOnboarding by remember { mutableStateOf(!AppPreferences.isOnboardingComplete(context)) }
     var page: AppPage by remember { mutableStateOf(AppPage.Main(MainSection.Home)) }
     var documentRefresh by remember { mutableIntStateOf(0) }
@@ -135,8 +132,15 @@ fun NuScanApp() {
     val appScope = rememberCoroutineScope()
 
 
-    LaunchedEffect(activity) {
-        activity?.let { privacy.requestConsent(it) }
+    LaunchedEffect(showOnboarding) {
+        if (!showOnboarding && AppPreferences.isAutoUpdateCheckEnabled(context)) {
+            when (val result = updater.checkForUpdate()) {
+                is UpdateCheckResult.Available -> snackbar.showSnackbar(
+                    "NuScan ${result.info.versionName} is available. Open Settings to update."
+                )
+                else -> Unit
+            }
+        }
     }
 
     if (showOnboarding) {
@@ -188,8 +192,6 @@ fun NuScanApp() {
                 onSignPdf = { page = AppPage.SignPdf },
                 onProtectPdf = { page = AppPage.ProtectPdf },
                 onQrTools = { page = AppPage.QrTools },
-                privacy = privacy,
-                onPrivacyOptions = { activity?.let(privacy::showPrivacyOptions) },
                 onReplayOnboarding = {
                     AppPreferences.setOnboardingComplete(context, false)
                     showOnboarding = true
@@ -301,8 +303,6 @@ private fun MainPage(
     onSignPdf: () -> Unit,
     onProtectPdf: () -> Unit,
     onQrTools: () -> Unit,
-    privacy: PrivacyConsentController,
-    onPrivacyOptions: () -> Unit,
     onReplayOnboarding: () -> Unit
 ) {
     when (section) {
@@ -311,9 +311,7 @@ private fun MainPage(
         MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr, onSignPdf, onProtectPdf, onQrTools)
         MainSection.Settings -> SettingsPage(
             modifier = modifier,
-            privacy = privacy,
-            onReplayOnboarding = onReplayOnboarding,
-            onPrivacyOptions = onPrivacyOptions
+            onReplayOnboarding = onReplayOnboarding
         )
     }
 }
@@ -623,9 +621,7 @@ private data class ToolItem(
 @Composable
 private fun SettingsPage(
     modifier: Modifier,
-    privacy: PrivacyConsentController,
-    onReplayOnboarding: () -> Unit,
-    onPrivacyOptions: () -> Unit
+    onReplayOnboarding: () -> Unit
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -637,11 +633,12 @@ private fun SettingsPage(
             Text("Simple controls for NuScan.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))
         }
+        item { UpdateSettingsCard() }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
                     headlineContent = { Text("Free document tools") },
-                    supportingContent = { Text("Every NuScan tool is available without a subscription or Pro plan.") },
+                    supportingContent = { Text("Every NuScan tool is available without subscriptions, Pro plans or ads.") },
                     leadingContent = { Icon(Icons.Default.CheckCircle, contentDescription = null) }
                 )
             }
@@ -659,27 +656,6 @@ private fun SettingsPage(
             OutlinedButton(onClick = onReplayOnboarding, modifier = Modifier.fillMaxWidth()) {
                 Text("Replay onboarding")
             }
-        }
-        if (privacy.privacyOptionsRequired) {
-            item {
-                Card(onClick = onPrivacyOptions, shape = RoundedCornerShape(18.dp)) {
-                    ListItem(
-                        headlineContent = { Text("Privacy choices") },
-                        supportingContent = { Text(privacy.statusText) },
-                        leadingContent = { Icon(Icons.Default.Settings, contentDescription = null) }
-                    )
-                }
-            }
-        }
-        item {
-            Text(
-                "NuScan uses a light ad-supported model. Development builds use Google's test banner IDs.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        if (privacy.canRequestAds) {
-            item { NuScanBannerAd() }
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
@@ -881,11 +857,6 @@ private fun sharePdf(context: Context, file: File) {
 }
 
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
 
 private fun formatSize(bytes: Long): String = when {
     bytes >= 1024L * 1024L -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))

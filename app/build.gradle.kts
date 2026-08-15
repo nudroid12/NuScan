@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -10,21 +11,17 @@ android {
     namespace = "com.nudroidlabs.nuscan"
     compileSdk = 36
 
-    val admobAppId = providers.gradleProperty("NUSCAN_ADMOB_APP_ID")
-        .orElse("ca-app-pub-3940256099942544~3347511713")
-        .get()
-    val bannerAdUnitId = providers.gradleProperty("NUSCAN_ADMOB_BANNER_ID")
-        .orElse("ca-app-pub-3940256099942544/9214589741")
-        .get()
-
     defaultConfig {
         applicationId = "com.nudroidlabs.nuscan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.0.0-rc2"
-        manifestPlaceholders["admobAppId"] = admobAppId
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$bannerAdUnitId\"")
+        versionCode = 13
+        versionName = "1.0.0-rc3"
+        buildConfigField(
+            "String",
+            "UPDATE_METADATA_URL",
+            "\"https://raw.githubusercontent.com/nudroid12/NuScan/main/update.json\""
+        )
     }
 
     buildFeatures {
@@ -45,8 +42,31 @@ android {
         )
     }
 
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties().apply {
+        if (keystorePropertiesFile.exists()) {
+            keystorePropertiesFile.inputStream().use { load(it) }
+        }
+    }
+    val releaseSigningReady = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        .all { !keystoreProperties.getProperty(it).isNullOrBlank() }
+
+    if (releaseSigningReady) {
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (releaseSigningReady) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -83,8 +103,6 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
-    implementation("com.google.android.gms:play-services-ads:25.4.0")
-    implementation("com.google.android.ump:user-messaging-platform:4.0.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
