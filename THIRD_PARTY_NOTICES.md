@@ -1,13 +1,8 @@
 # Third-party notices
 
-## PdfBox-Android
+NuScan uses the following Android libraries in M4:
 
-NuScan M3 uses PdfBox-Android 2.0.27.0 by Tom Roush, a port of Apache PDFBox for Android.
-
-License: Apache License 2.0.
-
-Project: TomRoush/PdfBox-Android
-
-## ML Kit Document Scanner
-
-NuScan uses the Google Play services ML Kit Document Scanner dependency for the scanner flow.
+- PdfBox-Android 2.0.27.0, Apache License 2.0, for PDF merge, split and compressed PDF generation.
+- Google ML Kit Document Scanner via Google Play services for scanning.
+- Google ML Kit Text Recognition 16.0.1 for bundled on-device Latin-script OCR.
+- AndroidX, Jetpack Compose and Kotlin libraries under their respective licences.

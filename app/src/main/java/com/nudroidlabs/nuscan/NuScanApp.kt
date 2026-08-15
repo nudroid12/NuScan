@@ -25,7 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
@@ -109,6 +109,8 @@ private sealed interface AppPage {
     data object MergePdf : AppPage
     data object SplitPdf : AppPage
     data object PdfToImage : AppPage
+    data object CompressPdf : AppPage
+    data object Ocr : AppPage
 }
 
 @Composable
@@ -149,7 +151,9 @@ fun NuScanApp() {
                 onImageToPdf = { page = AppPage.ImageToPdf },
                 onMergePdf = { page = AppPage.MergePdf },
                 onSplitPdf = { page = AppPage.SplitPdf },
-                onPdfToImage = { page = AppPage.PdfToImage }
+                onPdfToImage = { page = AppPage.PdfToImage },
+                onCompressPdf = { page = AppPage.CompressPdf },
+                onOcr = { page = AppPage.Ocr }
             )
             AppPage.Scanner -> ScannerPage(
                 modifier = Modifier.padding(padding),
@@ -199,6 +203,23 @@ fun NuScanApp() {
                     appScope.launch { snackbar.showSnackbar("Exported ${result.imageCount} image${if (result.imageCount == 1) "" else "s"} to ${result.folderName}") }
                 }
             )
+            AppPage.CompressPdf -> CompressPdfPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) },
+                onCreated = { result ->
+                    documentRefresh++
+                    page = AppPage.Main(MainSection.Documents)
+                    appScope.launch {
+                        val before = if (result.originalBytes > 0) formatSize(result.originalBytes) else "unknown size"
+                        val after = formatSize(result.outputBytes)
+                        snackbar.showSnackbar("Compressed ${result.pageCount} page${if (result.pageCount == 1) "" else "s"}: $before to $after")
+                    }
+                }
+            )
+            AppPage.Ocr -> OcrPage(
+                modifier = Modifier.padding(padding),
+                onBack = { page = AppPage.Main(MainSection.Tools) }
+            )
         }
     }
 }
@@ -212,12 +233,14 @@ private fun MainPage(
     onImageToPdf: () -> Unit,
     onMergePdf: () -> Unit,
     onSplitPdf: () -> Unit,
-    onPdfToImage: () -> Unit
+    onPdfToImage: () -> Unit,
+    onCompressPdf: () -> Unit,
+    onOcr: () -> Unit
 ) {
     when (section) {
-        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage)
+        MainSection.Home -> HomePage(modifier, refreshKey, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr)
         MainSection.Documents -> DocumentsPage(modifier, refreshKey)
-        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage)
+        MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr)
         MainSection.Settings -> SettingsPage(modifier)
     }
 }
@@ -230,7 +253,9 @@ private fun HomePage(
     onImageToPdf: () -> Unit,
     onMergePdf: () -> Unit,
     onSplitPdf: () -> Unit,
-    onPdfToImage: () -> Unit
+    onPdfToImage: () -> Unit,
+    onCompressPdf: () -> Unit,
+    onOcr: () -> Unit
 ) {
     val context = LocalContext.current
     val recent = remember(refreshKey) { DocumentRepository.listPdfFiles(context).take(3) }
@@ -294,7 +319,13 @@ private fun HomePage(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 QuickTool("PDF to image", Icons.Default.PictureAsPdf, Modifier.weight(1f), badge = "NEW", onClick = onPdfToImage)
-                QuickTool("Compress", Icons.Default.SwapVert, Modifier.weight(1f), badge = "M4")
+                QuickTool("Compress", Icons.Default.SwapVert, Modifier.weight(1f), badge = "NEW", onClick = onCompressPdf)
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                QuickTool("OCR", Icons.Default.TextFields, Modifier.weight(1f), badge = "NEW", onClick = onOcr)
+                Spacer(Modifier.weight(1f))
             }
         }
         item {
@@ -442,7 +473,9 @@ private fun ToolsPage(
     onImageToPdf: () -> Unit,
     onMergePdf: () -> Unit,
     onSplitPdf: () -> Unit,
-    onPdfToImage: () -> Unit
+    onPdfToImage: () -> Unit,
+    onCompressPdf: () -> Unit,
+    onOcr: () -> Unit
 ) {
     val tools = listOf(
         ToolItem("Image to PDF", "Images into a multi-page PDF", Icons.Default.Image, ToolAction.ImageToPdf),
@@ -450,8 +483,8 @@ private fun ToolsPage(
         ToolItem("Merge PDFs", "Combine multiple PDFs in your chosen order", Icons.Default.CallMerge, ToolAction.MergePdf),
         ToolItem("Split PDF", "Every page or custom page groups", Icons.Default.ContentCut, ToolAction.SplitPdf),
         ToolItem("PDF to image", "Export pages as PNG or JPEG", Icons.Default.PictureAsPdf, ToolAction.PdfToImage),
-        ToolItem("Compress PDF", "Planned for M4", Icons.Default.SwapVert, null),
-        ToolItem("OCR", "Planned for M4", Icons.Default.TextFields, null),
+        ToolItem("Compress PDF", "Reduce scanned PDF size with quality presets", Icons.Default.SwapVert, ToolAction.CompressPdf),
+        ToolItem("OCR", "Extract editable text from images or PDFs", Icons.Default.TextFields, ToolAction.Ocr),
         ToolItem("QR tools", "Planned for M5", Icons.Default.QrCode2, null),
         ToolItem("Protect PDF", "Planned for M5", Icons.Default.Lock, null)
     )
@@ -463,7 +496,7 @@ private fun ToolsPage(
     ) {
         item {
             Text("Tools", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("M3 turns the core PDF toolbox on. All enabled tools work locally on the device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("M4 adds PDF compression and OCR. Enabled tools work locally on the device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         items(tools) { tool ->
@@ -475,6 +508,8 @@ private fun ToolsPage(
                         ToolAction.MergePdf -> onMergePdf()
                         ToolAction.SplitPdf -> onSplitPdf()
                         ToolAction.PdfToImage -> onPdfToImage()
+                        ToolAction.CompressPdf -> onCompressPdf()
+                        ToolAction.Ocr -> onOcr()
                         null -> Unit
                     }
                 },
@@ -494,7 +529,7 @@ private fun ToolsPage(
     }
 }
 
-private enum class ToolAction { ImageToPdf, Scanner, MergePdf, SplitPdf, PdfToImage }
+private enum class ToolAction { ImageToPdf, Scanner, MergePdf, SplitPdf, PdfToImage, CompressPdf, Ocr }
 
 private data class ToolItem(
     val title: String,
@@ -512,14 +547,14 @@ private fun SettingsPage(modifier: Modifier) {
     ) {
         item {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("M3 adds merge, split and PDF-to-image while keeping document work local.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("M4 adds compression and OCR while keeping document work local.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
                     headlineContent = { Text("On-device document tools") },
-                    supportingContent = { Text("Image to PDF, merge, split and PDF-to-image run locally. Scanner processing is on-device; Google Play services may download scanner components on first use.") },
+                    supportingContent = { Text("PDF tools, compression and OCR run on-device. OCR uses a bundled Latin-script model. Scanner processing is on-device; Google Play services may download scanner components on first use.") },
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
                 )
             }
@@ -566,7 +601,7 @@ private fun ImageToPdfPage(
             title = { Text("Image to PDF") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)

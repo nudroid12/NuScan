@@ -1,27 +1,27 @@
-# NuScan
+# NuScan M4
 
-NuScan is an Android document and PDF toolkit by NudroidLabs.
+NuScan is an offline-first Android document toolkit by NudroidLabs.
 
-## M3
+## M4 features
 
-M3 keeps the M2 scanner and Image to PDF workflow, then turns on the core PDF toolbox.
+- Document scanner with crop, rotate and scan filters
+- Image to PDF
+- Merge PDF
+- Split PDF by page or custom groups
+- PDF to PNG/JPEG
+- PDF compression with High quality, Balanced and Small file presets
+- OCR for images and PDFs using the bundled ML Kit Latin-script text model
+- Copy, share and save OCR output as TXT
+- Local Documents library for PDFs created by NuScan
 
-Implemented:
+## Compression note
 
-- Home, Documents, Tools and Settings navigation
-- Multi-image to PDF with page reordering
-- Document scanner with auto detection, crop, rotate and filters
-- Local PDF library with open, share and delete
-- Merge two or more PDFs in a user-defined order
-- Split PDF into one PDF per page
-- Split PDF with custom groups such as `1-3, 4, 5-8`
-- Export every PDF page to PNG or JPEG
-- User-selected export folder for PDF to image
-- Local PDF processing for merge, split and rendering
-- GitHub Actions build and diagnostic bundle
+M4 compression is designed primarily for scanned and photo-based PDFs. It renders each page and rebuilds it with JPEG compression. This can substantially reduce scan size, but the output is flattened, so original searchable text, links, forms, annotations and digital signatures are not preserved.
 
-Merge and split use PdfBox-Android. PDF page rendering uses Android PdfRenderer.
+## Privacy
+
+Document processing is designed to happen on the device. The document scanner is provided through Google Play services and may download scanner components on first use. The M4 OCR Latin model is bundled with the APK.
 
 Package: `com.nudroidlabs.nuscan`
 
-Version: `0.3.0-m3`
+Version: `0.4.0-m4`
