@@ -9,26 +9,28 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -38,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -132,7 +135,7 @@ fun ScannerPage(
 
     Column(modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Scan document") },
+            title = { Text("Scan document", style = MaterialTheme.typography.titleLarge) },
             navigationIcon = {
                 IconButton(onClick = onBack, enabled = !busy) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -143,29 +146,36 @@ fun ScannerPage(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Card {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
                         Icon(
                             Icons.Default.DocumentScanner,
                             contentDescription = null,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(30.dp)
                         )
-                        Text(
-                            "Paper to PDF in one flow",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            "NuScan detects the document, lets you crop, rotate and apply scan filters, then saves the final PDF in Documents.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "Paper to PDF",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "Capture, crop, rotate and filter pages, then save one PDF.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -179,28 +189,6 @@ fun ScannerPage(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-
-            item {
-                Text("Scanner includes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            }
-
-            item { ScannerFeature("Automatic document detection and capture") }
-            item { ScannerFeature("Manual crop and perspective correction") }
-            item { ScannerFeature("Rotate and scan filters") }
-            item { ScannerFeature("Multi-page scans, up to 50 pages") }
-            item { ScannerFeature("Import pages from the photo gallery") }
-
-            errorText?.let { message ->
-                item {
-                    Card {
-                        Text(
-                            message,
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
             }
 
             item {
@@ -221,13 +209,51 @@ fun ScannerPage(
                 }
             }
 
+            errorText?.let { message ->
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            message,
+                            modifier = Modifier.padding(14.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
             item {
                 Text(
-                    "The scanner runs through Google Play services. On first use, its scanner components may need to be downloaded. Scanning and document processing then run on the device.",
+                    "Scanner includes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            item {
+                Card(shape = RoundedCornerShape(20.dp)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        ScannerFeature("Automatic document detection and capture")
+                        ScannerFeature("Crop and perspective correction")
+                        ScannerFeature("Rotate and scan filters")
+                        ScannerFeature("Multi-page scans, up to 50 pages")
+                        ScannerFeature("Import pages from gallery")
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    "Scanning uses Google Play services and may download scanner components on first use.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -235,11 +261,20 @@ fun ScannerPage(
 
 @Composable
 private fun ScannerFeature(text: String) {
-    Card {
-        ListItem(
-            headlineContent = { Text(text) },
-            leadingContent = { Icon(Icons.Default.CheckCircle, contentDescription = null) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.CheckCircle,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary
         )
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

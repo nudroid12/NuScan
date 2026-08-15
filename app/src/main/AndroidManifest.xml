@@ -14,7 +14,7 @@
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="barcode_ui" />
 
-        <!-- M7 defaults to Google test IDs. Supply production IDs as Gradle properties for release. -->
+        <!-- Development defaults to Google test IDs. Supply production IDs as Gradle properties for release. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}" />

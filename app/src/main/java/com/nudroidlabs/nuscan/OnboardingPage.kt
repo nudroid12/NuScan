@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 private data class IntroStep(
@@ -42,17 +44,17 @@ fun OnboardingPage(onFinish: () -> Unit) {
         listOf(
             IntroStep(
                 "Scan and build PDFs",
-                "Capture paper, import images, merge, split, compress and export documents from one app.",
+                "Scan paper or import images, then create and manage PDFs in one simple place.",
                 Icons.Default.DocumentScanner
             ),
             IntroStep(
-                "Privacy first",
-                "NuScan keeps document processing on your device wherever the selected tool allows it.",
+                "Private by design",
+                "Your document tools work on your device. NuScan does not require an account.",
                 Icons.Default.Lock
             ),
             IntroStep(
-                "Fast offline tools",
-                "Most PDF and OCR work does not need an account. Scanner and QR scan UI use Google Play services.",
+                "Useful tools, free",
+                "Merge, split, compress, OCR, sign, protect and QR tools are available without a Pro plan.",
                 Icons.Default.OfflineBolt
             )
         )
@@ -61,44 +63,81 @@ fun OnboardingPage(onFinish: () -> Unit) {
     val current = steps[index]
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding()
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("NuScan", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Text("Your pocket document toolkit", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "NuScan",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Your pocket document toolkit",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
-        Card(shape = RoundedCornerShape(32.dp), modifier = Modifier.fillMaxWidth()) {
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Column(
-                modifier = Modifier.padding(28.dp),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 26.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Icon(current.icon, contentDescription = null, modifier = Modifier.size(64.dp))
-                Text(current.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                Text(current.body, style = MaterialTheme.typography.bodyLarge)
+                Icon(current.icon, contentDescription = null, modifier = Modifier.size(48.dp))
+                Text(
+                    current.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    current.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     steps.indices.forEach { step ->
-                        Text(if (step == index) "●" else "○", color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            if (step == index) "●" else "○",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(Modifier.weight(1f))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             if (index > 0) {
-                FilledTonalButton(onClick = { index-- }, modifier = Modifier.weight(1f)) { Text("Back") }
+                FilledTonalButton(
+                    onClick = { index-- },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Back") }
             } else {
                 Spacer(Modifier.weight(1f))
             }
+
             Button(
                 onClick = {
                     if (index < steps.lastIndex) index++ else onFinish()
                 },
                 modifier = Modifier.weight(1f)
             ) {
-                Text(if (index == steps.lastIndex) "Start NuScan" else "Next")
+                Text(if (index == steps.lastIndex) "Start" else "Next")
             }
         }
     }

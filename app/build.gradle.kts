@@ -21,8 +21,8 @@ android {
         applicationId = "com.nudroidlabs.nuscan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.7.1-m7.1"
+        versionCode = 11
+        versionName = "1.0.0-rc1"
         manifestPlaceholders["admobAppId"] = admobAppId
         buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$bannerAdUnitId\"")
     }
@@ -83,7 +83,6 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
-    implementation("com.android.billingclient:billing:9.1.0")
     implementation("com.google.android.gms:play-services-ads:25.4.0")
     implementation("com.google.android.ump:user-messaging-platform:4.0.0")
 

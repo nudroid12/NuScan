@@ -1,16 +1,31 @@
-# NuScan M7.1
+# NuScan 1.0 RC1
 
-M7.1 is a release-fix patch on top of M7.
+M8 turns the stable M7.1 baseline into a simpler, free-first release candidate.
 
-## Changes
+## Product direction
 
-- Fixes the release R8 failure caused by PdfBox-Android's optional JP2/JPX dependency.
-- Keeps the debug APK artifact available even when the release AAB build fails.
-- Uploads the release AAB only when the release build succeeds.
-- Keeps diagnose output available on every run.
-- Replaces deprecated `CallMerge` icon usage with the AutoMirrored variant.
-- Bumps the app to `0.7.1-m7.1` with versionCode `8`.
+- All document tools are free. There is no Pro plan or Play Billing dependency.
+- The stable Google Play services document scanner from M7.1 is retained.
+- The experimental CameraX/OpenCV scanner from M7.2 is not included.
+- Ads remain light and consent-aware. Development builds use Google test IDs.
 
-## Release note
+## M8 UX changes
 
-NuScan does not bundle the old optional JP2Android dependency. PdfBox-Android documents JPX support as optional and skips JPX images when the decoder is absent. The targeted R8 `-dontwarn com.gemalto.jp2.**` rule therefore suppresses only that known optional dependency warning.
+- Safer edge-to-edge layout using system drawing insets.
+- Onboarding now respects both status and navigation bars.
+- Onboarding spacing is compact and the Next/Start action stays above system navigation.
+- Home is simplified around Scan plus four common quick tools.
+- Scan Document is compact and puts Start scanning immediately below the PDF name.
+- Tools and Settings copy is simplified and all premium language is removed.
+- Bottom navigation uses Material 3 NavigationBar.
+
+## Included tools
+
+Document scanner, Image to PDF, Merge PDF, Split PDF, PDF to Image, Compress PDF, OCR, Sign PDF, Protect PDF and QR tools.
+
+## Build
+
+Version: `1.0.0-rc1`
+Version code: `11`
+Package: `com.nudroidlabs.nuscan`
+Target SDK: `36`

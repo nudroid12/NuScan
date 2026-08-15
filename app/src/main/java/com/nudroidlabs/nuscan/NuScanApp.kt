@@ -14,12 +14,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,7 +50,6 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +61,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -73,7 +74,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -91,7 +91,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.nudroidlabs.nuscan.data.DocumentRepository
 import com.nudroidlabs.nuscan.monetization.NuScanBannerAd
-import com.nudroidlabs.nuscan.monetization.ProBillingController
 import com.nudroidlabs.nuscan.monetization.PrivacyConsentController
 import com.nudroidlabs.nuscan.pdf.PdfCreator
 import java.io.File
@@ -122,14 +121,12 @@ private sealed interface AppPage {
     data object SignPdf : AppPage
     data object ProtectPdf : AppPage
     data object QrTools : AppPage
-    data object Pro : AppPage
 }
 
 @Composable
 fun NuScanApp() {
     val context = LocalContext.current
     val activity = context.findActivity()
-    val proBilling = remember { ProBillingController(context.applicationContext) }
     val privacy = remember { PrivacyConsentController(context.applicationContext) }
     var showOnboarding by remember { mutableStateOf(!AppPreferences.isOnboardingComplete(context)) }
     var page: AppPage by remember { mutableStateOf(AppPage.Main(MainSection.Home)) }
@@ -137,9 +134,6 @@ fun NuScanApp() {
     val snackbar = remember { SnackbarHostState() }
     val appScope = rememberCoroutineScope()
 
-    DisposableEffect(proBilling) {
-        onDispose { proBilling.close() }
-    }
 
     LaunchedEffect(activity) {
         activity?.let { privacy.requestConsent(it) }
@@ -155,20 +149,18 @@ fun NuScanApp() {
         return
     }
 
-    fun openPremium(target: AppPage) {
-        page = if (BuildConfig.DEBUG || proBilling.isPro) target else AppPage.Pro
-    }
 
     BackHandler(enabled = page !is AppPage.Main) {
         page = AppPage.Main(MainSection.Home)
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (page is AppPage.Main) {
                 val current = (page as AppPage.Main).section
-                BottomAppBar(modifier = Modifier.navigationBarsPadding()) {
+                NavigationBar {
                     MainSection.entries.forEach { section ->
                         NavigationBarItem(
                             selected = current == section,
@@ -191,14 +183,12 @@ fun NuScanApp() {
                 onMergePdf = { page = AppPage.MergePdf },
                 onSplitPdf = { page = AppPage.SplitPdf },
                 onPdfToImage = { page = AppPage.PdfToImage },
-                onCompressPdf = { openPremium(AppPage.CompressPdf) },
-                onOcr = { openPremium(AppPage.Ocr) },
-                onSignPdf = { openPremium(AppPage.SignPdf) },
-                onProtectPdf = { openPremium(AppPage.ProtectPdf) },
+                onCompressPdf = { page = AppPage.CompressPdf },
+                onOcr = { page = AppPage.Ocr },
+                onSignPdf = { page = AppPage.SignPdf },
+                onProtectPdf = { page = AppPage.ProtectPdf },
                 onQrTools = { page = AppPage.QrTools },
-                proBilling = proBilling,
                 privacy = privacy,
-                onOpenPro = { page = AppPage.Pro },
                 onPrivacyOptions = { activity?.let(privacy::showPrivacyOptions) },
                 onReplayOnboarding = {
                     AppPreferences.setOnboardingComplete(context, false)
@@ -292,15 +282,6 @@ fun NuScanApp() {
                 modifier = Modifier.padding(padding),
                 onBack = { page = AppPage.Main(MainSection.Tools) }
             )
-            AppPage.Pro -> ProPage(
-                modifier = Modifier.padding(padding),
-                billing = proBilling,
-                onBack = { page = AppPage.Main(MainSection.Settings) },
-                onBuy = {
-                    activity?.let { proBilling.launchPurchase(it) }
-                        ?: "Unable to open Google Play purchase screen."
-                }
-            )
         }
     }
 }
@@ -320,9 +301,7 @@ private fun MainPage(
     onSignPdf: () -> Unit,
     onProtectPdf: () -> Unit,
     onQrTools: () -> Unit,
-    proBilling: ProBillingController,
     privacy: PrivacyConsentController,
-    onOpenPro: () -> Unit,
     onPrivacyOptions: () -> Unit,
     onReplayOnboarding: () -> Unit
 ) {
@@ -332,9 +311,7 @@ private fun MainPage(
         MainSection.Tools -> ToolsPage(modifier, onScan, onImageToPdf, onMergePdf, onSplitPdf, onPdfToImage, onCompressPdf, onOcr, onSignPdf, onProtectPdf, onQrTools)
         MainSection.Settings -> SettingsPage(
             modifier = modifier,
-            billing = proBilling,
             privacy = privacy,
-            onOpenPro = onOpenPro,
             onReplayOnboarding = onReplayOnboarding,
             onPrivacyOptions = onPrivacyOptions
         )
@@ -361,30 +338,46 @@ private fun HomePage(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Text("NuScan", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Private document tools that work on your device.",
+                "Scan, create and manage documents.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         item {
             Card(
+                onClick = onScan,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(28.dp)
+                shape = RoundedCornerShape(24.dp)
             ) {
-                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Icon(Icons.Default.DocumentScanner, contentDescription = null, modifier = Modifier.size(34.dp))
-                    Text("Scan paper into a polished PDF", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text("Detect pages, crop edges, rotate, apply scan filters and save a multi-page PDF.")
-                    Button(onClick = onScan) {
-                        Icon(Icons.Default.DocumentScanner, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text("Scan document")
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            Icons.Default.DocumentScanner,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(12.dp).size(28.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Scan document", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Capture pages and save a PDF",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
             }
@@ -393,45 +386,23 @@ private fun HomePage(
             Text("Quick tools", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool(
-                    title = "Image to PDF",
-                    icon = Icons.Default.Image,
-                    modifier = Modifier.weight(1f),
-                    onClick = onImageToPdf
-                )
-                QuickTool(
-                    title = "Scan",
-                    icon = Icons.Default.DocumentScanner,
-                    modifier = Modifier.weight(1f),
-                    badge = "NEW",
-                    onClick = onScan
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickTool("Image to PDF", Icons.Default.Image, Modifier.weight(1f), onClick = onImageToPdf)
+                QuickTool("Compress", Icons.Default.SwapVert, Modifier.weight(1f), onClick = onCompressPdf)
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool("Merge", Icons.AutoMirrored.Filled.CallMerge, Modifier.weight(1f), badge = "NEW", onClick = onMergePdf)
-                QuickTool("Split", Icons.Default.ContentCut, Modifier.weight(1f), badge = "NEW", onClick = onSplitPdf)
-            }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool("PDF to image", Icons.Default.PictureAsPdf, Modifier.weight(1f), badge = "NEW", onClick = onPdfToImage)
-                QuickTool("Compress", Icons.Default.SwapVert, Modifier.weight(1f), badge = "NEW", onClick = onCompressPdf)
-            }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickTool("Merge PDFs", Icons.AutoMirrored.Filled.CallMerge, Modifier.weight(1f), onClick = onMergePdf)
                 QuickTool("OCR", Icons.Default.TextFields, Modifier.weight(1f), onClick = onOcr)
-                QuickTool("Sign PDF", Icons.Default.Draw, Modifier.weight(1f), badge = "NEW", onClick = onSignPdf)
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTool("Protect PDF", Icons.Default.Lock, Modifier.weight(1f), badge = "NEW", onClick = onProtectPdf)
-                QuickTool("QR tools", Icons.Default.QrCode2, Modifier.weight(1f), badge = "NEW", onClick = onQrTools)
-            }
+            Text(
+                "More tools are available in the Tools tab.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         item {
             Text("Recent documents", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -451,21 +422,20 @@ private fun QuickTool(
     title: String,
     icon: ImageVector,
     modifier: Modifier,
-    badge: String? = null,
     onClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = modifier,
         onClick = { onClick?.invoke() },
         enabled = onClick != null,
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, contentDescription = null)
-            Text(title, fontWeight = FontWeight.Medium)
-            if (badge != null) {
-                Text(badge, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            }
+        Column(
+            Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -605,7 +575,7 @@ private fun ToolsPage(
     ) {
         item {
             Text("Tools", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("M7 hardens billing, privacy consent and release preparation. Premium tools stay unlocked in debug builds for testing.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("All NuScan tools are free and ready to use.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
         }
         items(tools) { tool ->
@@ -653,35 +623,33 @@ private data class ToolItem(
 @Composable
 private fun SettingsPage(
     modifier: Modifier,
-    billing: ProBillingController,
     privacy: PrivacyConsentController,
-    onOpenPro: () -> Unit,
     onReplayOnboarding: () -> Unit,
     onPrivacyOptions: () -> Unit
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("NuScan M7 release and privacy controls.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
+            Text("Simple controls for NuScan.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(6.dp))
         }
         item {
-            Card(onClick = onOpenPro, shape = RoundedCornerShape(18.dp)) {
+            Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
-                    headlineContent = { Text(if (billing.isPro) "NuScan Pro active" else "NuScan Pro") },
-                    supportingContent = { Text(if (billing.isPro) "Ads removed and premium entitlement active." else billing.statusText) },
-                    leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
+                    headlineContent = { Text("Free document tools") },
+                    supportingContent = { Text("Every NuScan tool is available without a subscription or Pro plan.") },
+                    leadingContent = { Icon(Icons.Default.CheckCircle, contentDescription = null) }
                 )
             }
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 ListItem(
-                    headlineContent = { Text("On-device document tools") },
+                    headlineContent = { Text("On-device processing") },
                     supportingContent = { Text("PDF tools, compression, OCR, QR generation and visible signing run on-device. Scanner and QR scanning use Google Play services UI.") },
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) }
                 )
@@ -703,19 +671,15 @@ private fun SettingsPage(
                 }
             }
         }
-        if (!billing.isPro) {
-            item {
-                Text("M7 ad test", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                Text(
-                    if (privacy.canRequestAds)
-                        "Consent state allows ad requests. This milestone still defaults to Google's test banner IDs."
-                    else
-                        "Banner waits until the consent platform allows ad requests.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (privacy.canRequestAds) item { NuScanBannerAd() }
+        item {
+            Text(
+                "NuScan uses a light ad-supported model. Development builds use Google's test banner IDs.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (privacy.canRequestAds) {
+            item { NuScanBannerAd() }
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
